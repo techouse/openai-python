@@ -153,10 +153,12 @@ class Options:
 
     @property
     def encode_options(self) -> EncodeOptions:
+        list_format: ListFormat = self._array_format_to_list_format(self.array_format)
         return EncodeOptions(
             list_format=self._array_format_to_list_format(self.array_format),
             allow_dots=self.nested_format == "dots",
             skip_nulls=True,
+            comma_compact_nulls=list_format == ListFormat.COMMA,
         )
 
     @staticmethod

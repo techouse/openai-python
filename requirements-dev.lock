@@ -125,7 +125,7 @@ python-dateutil==2.8.2
     # via time-machine
 pytz==2023.3.post1
     # via dirty-equals
-qs-codec==1.2.5
+qs-codec==1.3.0
     # via openai
 requests==2.31.0
     # via azure-core
