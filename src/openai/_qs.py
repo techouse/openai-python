@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, List, Tuple, Union, Mapping, TypeVar
-from urllib.parse import parse_qs, urlencode
-from typing_extensions import Literal, get_args
+from typing import Any, List, Mapping, Tuple, TypeVar, Union
+
+from qs_codec import EncodeOptions, ListFormat, decode, encode
+from typing_extensions import Literal, get_args, deprecated
 
 from ._types import NotGiven, not_given
 from ._utils import flatten
@@ -33,9 +34,9 @@ class Querystring:
         self.array_format = array_format
         self.nested_format = nested_format
 
-    def parse(self, query: str) -> Mapping[str, object]:
-        # Note: custom format syntax is not supported yet
-        return parse_qs(query)
+    @staticmethod
+    def parse(query: str) -> Mapping[str, object]:
+        return decode(query)
 
     def stringify(
         self,
@@ -44,14 +45,14 @@ class Querystring:
         array_format: ArrayFormat | NotGiven = not_given,
         nested_format: NestedFormat | NotGiven = not_given,
     ) -> str:
-        return urlencode(
-            self.stringify_items(
-                params,
-                array_format=array_format,
-                nested_format=nested_format,
-            )
+        opts = Options(
+            qs=self,
+            array_format=array_format,
+            nested_format=nested_format,
         )
+        return encode(params, opts.encode_options)
 
+    @deprecated("Use `stringify` instead and parse the result if needed.")
     def stringify_items(
         self,
         params: Params,
@@ -118,7 +119,8 @@ class Querystring:
             return []
         return [(key, serialised)]
 
-    def _primitive_value_to_str(self, value: PrimitiveData) -> str:
+    @staticmethod
+    def _primitive_value_to_str(value: PrimitiveData) -> str:
         # copied from httpx
         if value is True:
             return "true"
@@ -148,3 +150,25 @@ class Options:
     ) -> None:
         self.array_format = qs.array_format if isinstance(array_format, NotGiven) else array_format
         self.nested_format = qs.nested_format if isinstance(nested_format, NotGiven) else nested_format
+
+    @property
+    def encode_options(self) -> EncodeOptions:
+        return EncodeOptions(
+            list_format=self._array_format_to_list_format(self.array_format),
+            allow_dots=self.nested_format == "dots",
+            skip_nulls=True,
+        )
+
+    @staticmethod
+    def _array_format_to_list_format(array_format: ArrayFormat) -> ListFormat:
+        if array_format == "comma":
+            return ListFormat.COMMA
+        if array_format == "repeat":
+            return ListFormat.REPEAT
+        if array_format == "indices":
+            return ListFormat.INDICES
+        if array_format == "brackets":
+            return ListFormat.BRACKETS
+        raise NotImplementedError(
+            f"Unknown array_format value: {array_format}, choose from {', '.join(get_args(ArrayFormat))}"
+        )
